@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+    stages {
+        stage('scm') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Raghu-acer/spring-petclinic.git'        
+            }
+        }
+        stage('build') {
+            steps {
+                withSonarQubeEnv('SONAR') {
+                    sh script: 'mvn clean package sonar:sonar'
+
+                }
+                
+            }
+        }
+        stage('deploy to jfrog') {
+            steps {
+                     rtUpload (
+                         serverId: 'ARTIFACTORY',
+                           spec: '''{
+                           "files": [
+                                {
+                                    "pattern": "target/*.jar",
+                                    "target": "spring-petclinic"
+                            }
+                        ]
+                    }'''
+                )
+            }
+        }
+        stage ('Publish build info') {
+            steps {
+                rtPublishBuildInfo (
+                    serverId: 'ARTIFACTORY'
+                )
+            }
+        }
+        stage("run") {
+            steps {
+                 dir('cd /opt/tomcat/webapps/') {
+               sh script: 'java -jar spring-petclinic-2.4.2.jar'
+              }
+            }
+        }
+    }
+}
